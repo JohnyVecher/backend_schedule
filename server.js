@@ -38,3 +38,13 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
 });
+
+const keepAwake = () => {
+    setInterval(() => {
+        fetch('https://backend-schedule-b6vy.onrender.com')
+            .then(() => console.log("Сервер пробужден"))
+            .catch(err => console.error("Ошибка пробуждения сервера:", err));
+    }, 20000);
+};
+
+keepAwake();
