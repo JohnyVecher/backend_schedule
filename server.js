@@ -8,11 +8,16 @@ app.use(cors());
 app.use(express.json());
 
 const pool = new Pool({
-    user: 'postgres',
-    host: 'localhost',
-    database: 'schedule_db',
-    password: 'terra0458', 
-    port: 5432,
+    user: process.env.DB_USER,
+    host: process.env.DB_HOST,
+    database: process.env.DB_NAME,
+    password: process.env.DB_PASSWORD,
+    port: process.env.DB_PORT,
+    ssl: { rejectUnauthorized: false }
+});
+
+app.get("/", (req, res) => {
+    res.send("Сервер работает!");
 });
 
 app.get('/api/lessons', async (req, res) => {
@@ -29,6 +34,7 @@ app.get('/api/lessons', async (req, res) => {
     }
 });
 
-app.listen(3001, () => {
-    console.log('Сервер запущен на порту 3001');
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Сервер запущен на порту ${PORT}`);
 });
