@@ -34,6 +34,20 @@ app.get('/api/lessons', async (req, res) => {
     }
 });
 
+app.get('/api/lessonste31', async (req, res) => {
+    try {
+        const { week, day } = req.query;
+        const result = await pool.query(
+            'SELECT * FROM lessons WHERE week_number = $1 AND day_of_week = $2',
+            [week, day]
+        );
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка сервера');
+    }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
