@@ -24,7 +24,7 @@ app.get('/api/lessons', async (req, res) => {
     try {
         const { week, day } = req.query;
         const result = await pool.query(
-            'SELECT * FROM lessons WHERE week_number = $1 AND day_of_week = $2',
+            'SELECT * FROM TE_21B WHERE week_number = $1 AND day_of_week = $2',
             [week, day]
         );
         res.json(result.rows);
@@ -38,7 +38,7 @@ app.get('/api/lessonste31', async (req, res) => {
     try {
         const { week, day } = req.query;
         const result = await pool.query(
-            'SELECT * FROM lessonste31 WHERE week_number = $1 AND day_of_week = $2',
+            'SELECT * FROM TE_31B WHERE week_number = $1 AND day_of_week = $2',
             [week, day]
         );
         res.json(result.rows);
