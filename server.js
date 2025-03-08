@@ -3,14 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
-const fetch = require('node-fetch'); // Для keepAwake()
+const fs = require('fs');
 
-// Инициализация Express
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Подключение к PostgreSQL
+// Подключение к базе данных
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -20,21 +19,23 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Инициализация Firebase Admin SDK
-const serviceAccount = require("./firebase-adminsdk.json"); // Убедись, что этот файл есть в проекте
+// Подключение Firebase Admin SDK
+const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+if (!fs.existsSync(serviceAccountPath)) {
+    console.error("Файл Firebase Admin SDK не найден. Убедитесь, что он есть локально и указан в переменной GOOGLE_APPLICATION_CREDENTIALS");
+    process.exit(1);
+}
+
 admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
+    credential: admin.credential.cert(require(serviceAccountPath))
 });
 
-// Список подписчиков на уведомления
-let subscribers = {};
-
-// Корневой маршрут
+// Проверка работы сервера
 app.get("/", (req, res) => {
     res.send("Сервер работает!");
 });
 
-// Получение расписания TE_21B
+// API для получения занятий
 app.get('/api/lessons', async (req, res) => {
     try {
         const { week, day } = req.query;
@@ -49,7 +50,6 @@ app.get('/api/lessons', async (req, res) => {
     }
 });
 
-// Получение расписания TE_31B
 app.get('/api/lessonste31', async (req, res) => {
     try {
         const { week, day } = req.query;
@@ -64,68 +64,70 @@ app.get('/api/lessonste31', async (req, res) => {
     }
 });
 
-// Подписка на push-уведомления
-app.post('/api/subscribe', (req, res) => {
-    const { group, token } = req.body;
-    if (!group || !token) {
-        return res.status(400).json({ error: "Отсутствует группа или токен" });
+// Подписка на уведомления (привязка токена пользователя к группе)
+app.post('/subscribe', async (req, res) => {
+    try {
+        const { token, group } = req.body;
+
+        if (!token || !group) {
+            return res.status(400).send("Необходимо передать токен и группу");
+        }
+
+        await pool.query(
+            'INSERT INTO subscriptions (token, group_name) VALUES ($1, $2) ON CONFLICT (token) DO UPDATE SET group_name = $2',
+            [token, group]
+        );
+
+        res.status(200).send("Подписка успешно оформлена");
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Ошибка при подписке');
     }
-    
-    if (!subscribers[group]) {
-        subscribers[group] = new Set();
-    }
-    subscribers[group].add(token);
-    res.json({ message: "Подписка оформлена" });
 });
 
-// Проверка изменений в расписании
-const previousData = {};
-
-async function checkForChanges() {
+// Отправка уведомлений
+app.post('/sendNotification', async (req, res) => {
     try {
-        const groups = ["TE_21B", "TE_31B"];
-        for (let group of groups) {
-            const result = await pool.query(`SELECT * FROM ${group}`);
-            const newData = JSON.stringify(result.rows);
+        const { group, message } = req.body;
 
-            if (previousData[group] && previousData[group] !== newData) {
-                console.log(`Изменение в расписании группы ${group}`);
-                sendPushNotification(group);
-            }
-            previousData[group] = newData;
+        if (!group || !message) {
+            return res.status(400).send("Необходимо передать группу и сообщение");
         }
+
+        const result = await pool.query(
+            'SELECT token FROM subscriptions WHERE group_name = $1',
+            [group]
+        );
+
+        const tokens = result.rows.map(row => row.token);
+
+        if (tokens.length === 0) {
+            return res.status(404).send("Нет подписчиков для этой группы");
+        }
+
+        const payload = {
+            notification: {
+                title: "Расписание изменено",
+                body: message
+            },
+            tokens
+        };
+
+        await admin.messaging().sendEachForMulticast(payload);
+        res.status(200).send("Уведомления отправлены");
     } catch (err) {
-        console.error("Ошибка при проверке изменений:", err);
+        console.error(err);
+        res.status(500).send("Ошибка при отправке уведомлений");
     }
-}
+});
 
-// Отправка push-уведомления
-async function sendPushNotification(group) {
-    if (!subscribers[group] || subscribers[group].size === 0) {
-        return;
-    }
+// Запуск сервера
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Сервер запущен на порту ${PORT}`);
+});
 
-    const tokens = Array.from(subscribers[group]);
-    const message = {
-        notification: {
-            title: "Расписание изменено",
-            body: `Изменения в расписании группы ${group}`
-        },
-        tokens: tokens
-    };
-
-    try {
-        const response = await admin.messaging().sendMulticast(message);
-        console.log("Отправлены уведомления:", response.successCount);
-    } catch (err) {
-        console.error("Ошибка отправки push-уведомлений:", err);
-    }
-}
-
-// Проверка изменений каждые 60 секунд
-setInterval(checkForChanges, 60000);
-
-// KeepAwake для Render
+// Автоматический пинг для Render
 const keepAwake = () => {
     setInterval(() => {
         fetch('https://backend-schedule-b6vy.onrender.com')
@@ -135,9 +137,3 @@ const keepAwake = () => {
 };
 
 keepAwake();
-
-// Запуск сервера
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-    console.log(`Сервер запущен на порту ${PORT}`);
-});
