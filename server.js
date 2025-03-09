@@ -15,7 +15,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Подключение к базе данных
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -25,7 +24,7 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Подключение Firebase Admin SDK
+
 const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 if (!fs.existsSync(serviceAccountPath)) {
     console.error("Файл Firebase Admin SDK не найден. Убедитесь, что он есть локально и указан в переменной GOOGLE_APPLICATION_CREDENTIALS");
@@ -36,12 +35,12 @@ admin.initializeApp({
   credential: admin.credential.cert(require(process.env.GOOGLE_APPLICATION_CREDENTIALS))
 });
 
-// Проверка работы сервера
+
 app.get("/", (req, res) => {
     res.send("Сервер работает!");
 });
 
-// API для получения занятий
+
 app.get('/api/lessons', async (req, res) => {
     try {
         const { week, day } = req.query;
@@ -70,10 +69,9 @@ app.get('/api/lessonste31', async (req, res) => {
     }
 });
 
-// Подписка на уведомления (привязка токена пользователя к группе)
 app.post('/api/subscribe', async (req, res) => {
     try {
-        console.log("Запрос на подписку получен:", req.body); // <== ЛОГ В КОНСОЛИ
+        console.log("Запрос на подписку получен:", req.body);
         const { token, group } = req.body;
 
         if (!token || !group) {
@@ -92,13 +90,11 @@ app.post('/api/subscribe', async (req, res) => {
     }
 });
 
-// Запуск сервера
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
 });
 
-// Автоматический пинг для Render
 const keepAwake = () => {
     setInterval(() => {
         fetch('https://backend-schedule-b6vy.onrender.com')
@@ -137,7 +133,6 @@ supabase
         return;
       }
 
-      // Получаем токены подписчиков
       const result = await pool.query(
         "SELECT token FROM subscriptions WHERE group_name = $1",
         ["TE21B"]
@@ -151,18 +146,12 @@ supabase
         return;
       }
 
-      // Преобразуем номер дня недели в текст
       const dayName = getDayOfWeekName(changedDay);
-
-      // Формируем сообщение
       const message = `Расписание изменено ${dayName}`;
       console.log("Сообщение для отправки:", message);
-
-      // Отправляем уведомления
       try {
         const response = await admin.messaging().sendEachForMulticast({
-          notification: { title: "Изменение в расписании", body: message },
-          tokens,
+          notification: { title: "Изменение в расписании", body: message }
         });
 
         console.log("Уведомления отправлены:", response);
