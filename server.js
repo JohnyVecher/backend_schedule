@@ -7,8 +7,8 @@ const admin = require('firebase-admin');
 const fs = require('fs');
 
 const supabaseUrl = "https://xyfvnuseelbsfmgroqrn.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnZudXNlZWxic2ZtZ3JvcXJuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDAzMTA3NjgsImV4cCI6MjA1NTg4Njc2OH0.E5NW1w88SfMq_VKHrV84SNeomcG3uZFrsJ-CQgmVnYk";
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnZudXNlZWxic2ZtZ3JvcXJuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MDMxMDc2OCwiZXhwIjoyMDU1ODg2NzY4fQ.qbGUpC2cZIPpcjXypHx_eDppVO_WnVawWVG5qp6Bso4";
+const supabase = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_ROLE_KEY)
 
 const app = express();
 app.use(cors());
