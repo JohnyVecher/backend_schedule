@@ -91,42 +91,6 @@ app.post('/api/subscribe', async (req, res) => {
     }
 });
 
-// Отправка уведомлений
-app.post('/sendNotification', async (req, res) => {
-    try {
-        const { group, message } = req.body;
-
-        if (!group || !message) {
-            return res.status(400).send("Необходимо передать группу и сообщение");
-        }
-
-        const result = await pool.query(
-            'SELECT token FROM subscriptions WHERE group_name = $1',
-            [group]
-        );
-
-        const tokens = result.rows.map(row => row.token);
-
-        if (tokens.length === 0) {
-            return res.status(404).send("Нет подписчиков для этой группы");
-        }
-
-        const payload = {
-            notification: {
-                title: "Расписание изменено",
-                body: message
-            },
-            tokens
-        };
-
-        await admin.messaging().sendEachForMulticast(payload);
-        res.status(200).send("Уведомления отправлены");
-    } catch (err) {
-        console.error(err);
-        res.status(500).send("Ошибка при отправке уведомлений");
-    }
-});
-
 // Запуск сервера
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
@@ -201,7 +165,7 @@ supabase
         });
 
         console.log("Уведомления отправлены:", response);
-        if (response.failureCount > 1) {
+        if (response.failureCount > 0) {
           console.error("Ошибки при отправке уведомлений:", response.responses);
         }
       } catch (err) {
