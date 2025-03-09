@@ -1,6 +1,5 @@
 const messaging = require("./firebase");
 
-// Функция для отправки пуш-уведомлений
 async function sendNotification(token, message) {
   try {
     const payload = {

@@ -27,7 +27,7 @@ if (!fs.existsSync(serviceAccountPath)) {
 }
 
 admin.initializeApp({
-    credential: admin.credential.cert(require(serviceAccountPath))
+  credential: admin.credential.cert(require(process.env.GOOGLE_APPLICATION_CREDENTIALS))
 });
 
 // Проверка работы сервера
@@ -119,6 +119,12 @@ app.post('/sendNotification', async (req, res) => {
         console.error(err);
         res.status(500).send("Ошибка при отправке уведомлений");
     }
+});
+
+app.post("/api/subscribe", async (req, res) => {
+    const { token } = req.body;
+    console.log("Новый подписчик:", token);
+    res.status(200).json({ success: true });
 });
 
 // Запуск сервера
