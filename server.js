@@ -161,7 +161,7 @@ supabase
       // Получаем токены подписчиков
       const result = await pool.query(
         "SELECT token FROM subscriptions WHERE group_name = $1",
-        ["TE_21B"]
+        ["TE21B"]
       );
 
       const tokens = result.rows.map((row) => row.token);
