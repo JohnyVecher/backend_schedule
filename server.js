@@ -121,12 +121,6 @@ app.post('/sendNotification', async (req, res) => {
     }
 });
 
-app.post("/api/subscribe", async (req, res) => {
-    const { token } = req.body;
-    console.log("Новый подписчик:", token);
-    res.status(200).json({ success: true });
-});
-
 // Запуск сервера
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
