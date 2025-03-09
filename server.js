@@ -144,6 +144,20 @@ const keepAwake = () => {
 
 keepAwake();
 
+function getDayOfWeekName(dayOfWeek) {
+  const days = [
+    "Воскресенье",
+    "Понедельник",
+    "Вторник",
+    "Среда",  
+    "Четверг", 
+    "Пятница", 
+    "Суббота",    
+  ];
+
+  return days[dayOfWeek] || "Неизвестный день";
+}
+
 supabase
   .channel("custom-insert-channel")
   .on(
@@ -165,15 +179,18 @@ supabase
       );
 
       const tokens = result.rows.map((row) => row.token);
-      console.log("Токены для группы TE_21B:", tokens);
+      console.log("Токены для группы TE21B:", tokens);
 
       if (tokens.length === 0) {
-        console.log("Нет подписчиков для группы TE_21B");
+        console.log("Нет подписчиков для группы TE21B");
         return;
       }
 
+      // Преобразуем номер дня недели в текст
+      const dayName = getDayOfWeekName(changedDay);
+
       // Формируем сообщение
-      const message = `Расписание изменилось (${changedDay})`;
+      const message = `Расписание изменено ${dayName}`;
       console.log("Сообщение для отправки:", message);
 
       // Отправляем уведомления
@@ -184,7 +201,7 @@ supabase
         });
 
         console.log("Уведомления отправлены:", response);
-        if (response.failureCount > 0) {
+        if (response.failureCount > 1) {
           console.error("Ошибки при отправке уведомлений:", response.responses);
         }
       } catch (err) {
