@@ -67,6 +67,7 @@ app.get('/api/lessonste31', async (req, res) => {
 // Подписка на уведомления (привязка токена пользователя к группе)
 app.post('/api/subscribe', async (req, res) => {
     try {
+        console.log("Запрос на подписку получен:", req.body); // <== ЛОГ В КОНСОЛИ
         const { token, group } = req.body;
 
         if (!token || !group) {
@@ -80,7 +81,7 @@ app.post('/api/subscribe', async (req, res) => {
 
         res.status(200).send("Подписка успешно оформлена");
     } catch (err) {
-        console.error(err);
+        console.error("Ошибка при подписке:", err);
         res.status(500).send('Ошибка при подписке');
     }
 });
