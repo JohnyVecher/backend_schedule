@@ -5,6 +5,7 @@ const cors = require('cors');
 const { Pool } = require('pg');
 const admin = require('firebase-admin');
 const fs = require('fs');
+const crypto = require("crypto");
 
 const supabaseUrl = "https://xyfvnuseelbsfmgroqrn.supabase.co";
 const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5ZnZudXNlZWxic2ZtZ3JvcXJuIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0MDMxMDc2OCwiZXhwIjoyMDU1ODg2NzY4fQ.qbGUpC2cZIPpcjXypHx_eDppVO_WnVawWVG5qp6Bso4";
@@ -122,55 +123,86 @@ function getDayOfWeekName(dayOfWeek) {
   return days[dayOfWeek] || "Неизвестный день";
 }
 
-supabase
-  .channel("custom-insert-channel")
-  .on(
-    "postgres_changes",
-    { event: "*", schema: "public", table: "te_21b" },
-    async (payload) => {
-      console.log("Изменение в расписании:", payload);
+let lastProcessedEventId = null;
+let lastProcessedEventHash = null;
 
-      const changedDay = payload.new?.day_of_week;
-      if (!changedDay) {
-        console.log("День недели не найден в payload");
-        return;
-      }
+let isSubscribed = false;
 
-      // Получаем токены подписчиков
-      const result = await pool.query(
-        "SELECT token FROM subscriptions WHERE group_name = $1",
-        ["TE21B"]
-      );
+if (!isSubscribed) {
+  console.log("Подписка на канал Supabase...");
+  supabase
+    .channel("custom-insert-channel")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "te_21b" },
+      async (payload) => {
+        console.log("Изменение в расписании:", payload);
 
-      const tokens = result.rows.map((row) => row.token);
-      console.log("Токены для группы TE21B:", tokens);
-
-      if (tokens.length === 0) {
-        console.log("Нет подписчиков для группы TE21B");
-        return;
-      }
-
-      // Преобразуем номер дня недели в текст
-      const dayName = getDayOfWeekName(changedDay);
-
-      // Формируем сообщение
-      const message = `Расписание изменено ${dayName}`;
-      console.log("Сообщение для отправки:", message);
-
-      // Отправляем уведомления
-      try {
-        const response = await admin.messaging().sendEachForMulticast({
-          notification: { title: "Изменение в расписании", body: message },
-          tokens,
-        });
-
-        console.log("Уведомления отправлены:", response);
-        if (response.failureCount > 0) {
-          console.error("Ошибки при отправке уведомлений:", response.responses);
+        // Проверка дублирования по ID события (если есть)
+        if (payload.id && payload.id === lastProcessedEventId) {
+          console.log("Дублирование события, игнорируем:", payload.id);
+          return;
         }
-      } catch (err) {
-        console.error("Ошибка при отправке уведомлений:", err);
+
+        // Если ID события нет, используем хэш payload для проверки дублирования
+        const payloadHash = crypto
+          .createHash("md5")
+          .update(JSON.stringify(payload))
+          .digest("hex");
+
+        if (payloadHash === lastProcessedEventHash) {
+          console.log("Дублирование события, игнорируем (хэш):", payloadHash);
+          return;
+        }
+
+        // Сохраняем ID события или хэш для проверки дублирования
+        lastProcessedEventId = payload.id || null;
+        lastProcessedEventHash = payloadHash;
+
+        const changedDay = payload.new?.day_of_week;
+        if (!changedDay) {
+          console.log("День недели не найден в payload");
+          return;
+        }
+
+        // Получаем токены подписчиков
+        const result = await pool.query(
+          "SELECT token FROM subscriptions WHERE group_name = $1",
+          ["TE21B"]
+        );
+
+        const tokens = result.rows.map((row) => row.token);
+        console.log("Токены для группы TE21B:", tokens);
+
+        if (tokens.length === 0) {
+          console.log("Нет подписчиков для группы TE21B");
+          return;
+        }
+
+        // Преобразуем номер дня недели в текст
+        const dayName = getDayOfWeekName(changedDay);
+
+        // Формируем сообщение
+        const message = `Расписание изменено ${dayName}`;
+        console.log("Сообщение для отправки:", message);
+
+        // Отправляем уведомления
+        try {
+          const response = await admin.messaging().sendEachForMulticast({
+            notification: { title: "Изменение в расписании", body: message },
+            tokens,
+          });
+
+          console.log("Уведомления отправлены:", response);
+          if (response.failureCount > 0) {
+            console.error("Ошибки при отправке уведомлений:", response.responses);
+          }
+        } catch (err) {
+          console.error("Ошибка при отправке уведомлений:", err);
+        }
       }
-    }
-  )
-  .subscribe();
+    )
+    .subscribe();
+
+  isSubscribed = true; // Помечаем, что подписка выполнена
+}
