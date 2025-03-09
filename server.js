@@ -65,7 +65,7 @@ app.get('/api/lessonste31', async (req, res) => {
 });
 
 // Подписка на уведомления (привязка токена пользователя к группе)
-app.post('/subscribe', async (req, res) => {
+app.post('/api/subscribe', async (req, res) => {
     try {
         const { token, group } = req.body;
 
