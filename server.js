@@ -153,24 +153,43 @@ supabase
       console.log("Изменение в расписании:", payload);
 
       const changedDay = payload.new?.day_of_week;
-      if (!changedDay) return;
+      if (!changedDay) {
+        console.log("День недели не найден в payload");
+        return;
+      }
 
-      // Отправляем уведомление подписчикам
+      // Получаем токены подписчиков
       const result = await pool.query(
         "SELECT token FROM subscriptions WHERE group_name = $1",
         ["TE_21B"]
       );
 
       const tokens = result.rows.map((row) => row.token);
-      if (tokens.length === 0) return;
+      console.log("Токены для группы TE_21B:", tokens);
 
+      if (tokens.length === 0) {
+        console.log("Нет подписчиков для группы TE_21B");
+        return;
+      }
+
+      // Формируем сообщение
       const message = `Расписание изменилось (${changedDay})`;
-      await admin.messaging().sendEachForMulticast({
-        notification: { title: "Изменение в расписании", body: message },
-        tokens,
-      });
+      console.log("Сообщение для отправки:", message);
 
-      console.log("Уведомления отправлены подписчикам TE_21B");
+      // Отправляем уведомления
+      try {
+        const response = await admin.messaging().sendEachForMulticast({
+          notification: { title: "Изменение в расписании", body: message },
+          tokens,
+        });
+
+        console.log("Уведомления отправлены:", response);
+        if (response.failureCount > 0) {
+          console.error("Ошибки при отправке уведомлений:", response.responses);
+        }
+      } catch (err) {
+        console.error("Ошибка при отправке уведомлений:", err);
+      }
     }
   )
   .subscribe();
