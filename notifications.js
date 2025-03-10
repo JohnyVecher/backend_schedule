@@ -4,7 +4,7 @@ async function sendNotification(token, message) {
   try {
     const payload = {
       notification: {
-        title: "Расписание изменено умри чел сдохни",
+        title: "Далбаеб",
         body: message,
       },
       token: token,
