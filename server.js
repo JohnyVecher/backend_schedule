@@ -122,15 +122,17 @@ function getDayOfWeekName(dayOfWeek) {
   return days[dayOfWeek] || "Неизвестный день";
 }
 
-if (!global.subscription) {
+if (!global.isSubscribed) {
+  global.isSubscribed = true;
   console.log("✅ Подписка на изменения в расписании TE_21B");
-  global.subscription = supabase
+
+  supabase
     .channel("custom-insert-channel")
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "te_21b" },
       async (payload) => {
-        console.log("Изменение в расписании:", payload);
+        console.log("🔔 Изменение в расписании:", payload);
 
         const changedDay = payload.new?.day_of_week;
         if (changedDay === undefined || changedDay === null) {
@@ -139,9 +141,9 @@ if (!global.subscription) {
         }
 
         try {
-          // Получаем токены подписчиков
+          // Получаем УНИКАЛЬНЫЕ токены подписчиков
           const result = await pool.query(
-            "SELECT token FROM subscriptions WHERE group_name = $1",
+            "SELECT DISTINCT token FROM subscriptions WHERE group_name = $1",
             ["TE21B"]
           );
 
@@ -155,6 +157,15 @@ if (!global.subscription) {
 
           // Преобразуем номер дня недели в текст
           const dayName = getDayOfWeekName(changedDay);
+
+          // Проверяем, было ли уже отправлено уведомление за последние 5 минут
+          const cacheKey = `TE21B-${dayName}`;
+          if (global.lastSent && global.lastSent[cacheKey]) {
+            console.log("⏳ Уведомление уже отправлялось недавно, пропускаем.");
+            return;
+          }
+          global.lastSent = global.lastSent || {};
+          global.lastSent[cacheKey] = Date.now();
 
           // Формируем сообщение
           const message = `Расписание изменено: ${dayName}`;
