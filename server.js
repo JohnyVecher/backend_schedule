@@ -141,7 +141,6 @@ if (!global.isSubscribed) {
         }
 
         try {
-          // Получаем УНИКАЛЬНЫЕ токены подписчиков
           const result = await pool.query(
             "SELECT DISTINCT token FROM subscriptions WHERE group_name = $1",
             ["TE21B"]
@@ -157,21 +156,9 @@ if (!global.isSubscribed) {
 
           // Преобразуем номер дня недели в текст
           const dayName = getDayOfWeekName(changedDay);
-
-          // Проверяем, было ли уже отправлено уведомление за последние 5 минут
-          const cacheKey = `TE21B-${dayName}`;
-          if (global.lastSent && global.lastSent[cacheKey]) {
-            console.log("⏳ Уведомление уже отправлялось недавно, пропускаем.");
-            return;
-          }
-          global.lastSent = global.lastSent || {};
-          global.lastSent[cacheKey] = Date.now();
-
-          // Формируем сообщение
           const message = `Расписание изменено: ${dayName}`;
-          console.log("📢 Сообщение для отправки:", message);
 
-          // Отправляем уведомления
+          // Отправка уведомлений
           const response = await admin.messaging().sendEachForMulticast({
             notification: { title: "Изменение в расписании", body: message },
             tokens,
@@ -188,3 +175,4 @@ if (!global.isSubscribed) {
     )
     .subscribe();
 }
+
