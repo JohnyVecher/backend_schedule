@@ -14,7 +14,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Подключение к базе данных
 const pool = new Pool({
     user: process.env.DB_USER,
     host: process.env.DB_HOST,
@@ -24,7 +23,6 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// Подключение Firebase Admin SDK
 const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 if (!fs.existsSync(serviceAccountPath)) {
     console.error("Файл Firebase Admin SDK не найден. Убедитесь, что он есть локально и указан в переменной GOOGLE_APPLICATION_CREDENTIALS");
@@ -35,12 +33,10 @@ admin.initializeApp({
   credential: admin.credential.cert(require(process.env.GOOGLE_APPLICATION_CREDENTIALS))
 });
 
-// Проверка работы сервера
 app.get("/", (req, res) => {
     res.send("Сервер работает!");
 });
 
-// API для получения занятий
 app.get('/api/lessons', async (req, res) => {
     try {
         const { week, day } = req.query;
@@ -69,10 +65,9 @@ app.get('/api/lessonste31', async (req, res) => {
     }
 });
 
-// Подписка на уведомления (привязка токена пользователя к группе)
 app.post('/api/subscribe', async (req, res) => {
     try {
-        console.log("Запрос на подписку получен:", req.body); // <== ЛОГ В КОНСОЛИ
+        console.log("Запрос на подписку получен:", req.body);
         const { token, group } = req.body;
 
         if (!token || !group) {
@@ -91,13 +86,11 @@ app.post('/api/subscribe', async (req, res) => {
     }
 });
 
-// Запуск сервера
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.log(`Сервер запущен на порту ${PORT}`);
 });
 
-// Автоматический пинг для Render
 const keepAwake = () => {
     setInterval(() => {
         fetch('https://backend-schedule-b6vy.onrender.com')
@@ -124,7 +117,7 @@ function getDayOfWeekName(dayOfWeek) {
 
 if (!global.isSubscribed) {
   global.isSubscribed = true;
-  console.log("✅ Подписка на изменения в расписании TE_21B");
+  console.log("Подписка на изменения в расписании TE_21B");
 
   supabase
     .channel("custom-insert-channel")
@@ -132,11 +125,11 @@ if (!global.isSubscribed) {
       "postgres_changes",
       { event: "*", schema: "public", table: "te_21b" },
       async (payload) => {
-        console.log("🔔 Изменение в расписании:", payload);
+        console.log("Изменение в расписании:", payload);
 
         const changedDay = payload.new?.day_of_week;
         if (changedDay === undefined || changedDay === null) {
-          console.log("❌ День недели не найден в payload");
+          console.log("День недели не найден в payload");
           return;
         }
 
@@ -147,29 +140,27 @@ if (!global.isSubscribed) {
           );
 
           const tokens = result.rows.map((row) => row.token);
-          console.log("📲 Токены для группы TE21B:", tokens);
+          console.log("Токены для группы TE21B:", tokens);
 
           if (tokens.length === 0) {
-            console.log("⚠️ Нет подписчиков для группы TE21B");
+            console.log("Нет подписчиков для группы TE21B");
             return;
           }
 
-          // Преобразуем номер дня недели в текст
           const dayName = getDayOfWeekName(changedDay);
           const message = `Расписание изменено: ${dayName}`;
 
-          // Отправка уведомлений
           const response = await admin.messaging().sendEachForMulticast({
             notification: { title: "Изменение в расписании", body: message },
             tokens,
           });
 
-          console.log("✅ Уведомления отправлены:", response);
+          console.log("Уведомления отправлены:", response);
           if (response.failureCount > 0) {
-            console.error("⚠️ Ошибки при отправке уведомлений:", response.responses);
+            console.error("Ошибки при отправке уведомлений:", response.responses);
           }
         } catch (err) {
-          console.error("❌ Ошибка при отправке уведомлений:", err);
+          console.error("Ошибка при отправке уведомлений:", err);
         }
       }
     )

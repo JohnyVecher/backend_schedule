@@ -12,7 +12,7 @@ async function sendNotification(tokens, message) {
         title: "Изменение в расписании",
         body: message,
       },
-      tokens: tokens, // Отправка множеству устройств
+      tokens: tokens,
     };
 
     const response = await messaging.sendEachForMulticast(payload);
